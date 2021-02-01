@@ -88,6 +88,7 @@ static __always_inline int ipv6_l3_from_lxc(struct __ctx_buff *ctx,
 
 	l4_off = l3_off + hdrlen;
 
+#if defined(UNDEFINED)
 #ifndef ENABLE_HOST_SERVICES_FULL
 	{
 		struct lb6_service *svc;
@@ -122,6 +123,7 @@ static __always_inline int ipv6_l3_from_lxc(struct __ctx_buff *ctx,
 
 skip_service_lookup:
 #endif /* !ENABLE_HOST_SERVICES_FULL */
+#endif /* UNDEFINED */
 
 	/* The verifier wants to see this assignment here in case the above goto
 	 * skip_service_lookup is hit. However, in the case the packet
@@ -478,6 +480,7 @@ static __always_inline int handle_ipv4_from_lxc(struct __ctx_buff *ctx,
 
 	l4_off = l3_off + ipv4_hdrlen(ip4);
 
+#if defined(UNDEFINED)
 #ifndef ENABLE_HOST_SERVICES_FULL
 	{
 		struct lb4_service *svc;
@@ -505,6 +508,7 @@ static __always_inline int handle_ipv4_from_lxc(struct __ctx_buff *ctx,
 
 skip_service_lookup:
 #endif /* !ENABLE_HOST_SERVICES_FULL */
+#endif /* UNDEFINED */
 
 	/* The verifier wants to see this assignment here in case the above goto
 	 * skip_service_lookup is hit. However, in the case the packet
@@ -522,20 +526,29 @@ skip_service_lookup:
 	 * POLICY_SKIP if the packet is a reply packet to an existing incoming
 	 * connection.
 	 */
+	#if defined(UNDEFINED)
 	ret = ct_lookup4(get_ct_map4(&tuple), &tuple, ctx, l4_off, CT_EGRESS,
 			 &ct_state, &monitor);
 	if (ret < 0)
 		return ret;
+	#else
+	// I guess, that's the closest to a nop?
+	(void)ct_state_new;
+	ret = CT_RELATED;
+	#endif
 
 	reason = ret;
 
+	#if defined(UNDEFINED)
 	/* Check it this is return traffic to an ingress proxy. */
 	if ((ret == CT_REPLY || ret == CT_RELATED) && ct_state.proxy_redirect) {
 		/* Stack will do a socket match and deliver locally. */
 		return ctx_redirect_to_proxy4(ctx, &tuple, 0, false);
 	}
+	#endif
 
 	/* Determine the destination category for policy fallback. */
+	#if defined(UNDEFINED)
 	if (1) {
 		struct remote_endpoint_info *info;
 
@@ -551,11 +564,16 @@ skip_service_lookup:
 		cilium_dbg(ctx, info ? DBG_IP_ID_MAP_SUCCEED4 : DBG_IP_ID_MAP_FAILED4,
 			   orig_dip, *dstID);
 	}
+	#else
+	(void)tunnel_endpoint;
+	(void)encrypt_key;
+	#endif
 
 	/* If the packet is in the establishing direction and it's destined
 	 * within the cluster, it must match policy or be dropped. If it's
 	 * bound for the host/outside, perform the CIDR policy check.
 	 */
+	#if defined(UNDEFINED)
 	verdict = policy_can_egress4(ctx, &tuple, SECLABEL, *dstID,
 				     &policy_match_type, &audited);
 
@@ -565,7 +583,13 @@ skip_service_lookup:
 					   verdict, policy_match_type, audited);
 		return verdict;
 	}
+	#else
+	(void)policy_match_type;
+	(void)audited;
+	verdict = CTX_ACT_OK;
+	#endif
 
+	#if defined(UNDEFINED)
 	switch (ret) {
 	case CT_NEW:
 		send_policy_verdict_notify(ctx, *dstID, tuple.dport,
@@ -631,6 +655,9 @@ ct_recreate4:
 	default:
 		return DROP_UNKNOWN_CT;
 	}
+	#else
+	(void)csum_off;
+	#endif
 
 	hairpin_flow |= ct_state.loopback;
 
@@ -937,9 +964,13 @@ ipv6_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 			return ret2;
 	}
 
+	#if defined(UNDEFINED)
 	verdict = policy_can_access_ingress(ctx, src_label, SECLABEL,
 					    tuple.dport, tuple.nexthdr, false,
 					    &policy_match_type, &audited);
+	#else
+	verdict = CTX_ACT_OK;
+	#endif
 
 	/* Reply packets and related packets are allowed, all others must be
 	 * permitted by policy.
@@ -1104,8 +1135,10 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 	struct iphdr *ip4;
 	struct csum_offset csum_off = {};
 	int ret, verdict, l3_off = ETH_HLEN, l4_off;
+	#if defined(UNDEFINED)
 	struct ct_state ct_state = {};
 	struct ct_state ct_state_new = {};
+	#endif
 	bool skip_ingress_proxy = false;
 	bool is_untracked_fragment = false;
 	bool has_l4_header = false;
@@ -1140,10 +1173,15 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 	is_untracked_fragment = ipv4_is_fragment(ip4);
 #endif
 
+	#if defined(UNDEFINED)
 	ret = ct_lookup4(get_ct_map4(&tuple), &tuple, ctx, l4_off, CT_INGRESS, &ct_state,
 			 &monitor);
 	if (ret < 0)
 		return ret;
+	#else
+	// I guess, that's the closest to a nop?
+	ret = CT_RELATED;
+	#endif
 
 	*reason = ret;
 
@@ -1151,6 +1189,7 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 	 * Do not redirect again if the packet is coming from the egress proxy.
 	 */
 	relax_verifier();
+	#if defined(UNDEFINED)
 	if ((ret == CT_REPLY || ret == CT_RELATED) && ct_state.proxy_redirect &&
 	    !tc_index_skip_egress_proxy(ctx)) {
 		/* This is a reply, the proxy port does not need to be embedded
@@ -1162,6 +1201,7 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 			*tuple_out = tuple;
 		return POLICY_ACT_PROXY_REDIRECT;
 	}
+	#endif
 
 #ifdef ENABLE_NAT46
 	if (ctx_load_meta(ctx, CB_NAT46_STATE) == NAT46) {
@@ -1169,6 +1209,7 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 		return DROP_MISSED_TAIL_CALL;
 	}
 #endif
+	#if defined(UNDEFINED)
 	if (unlikely(ret == CT_REPLY && ct_state.rev_nat_index &&
 		     !ct_state.loopback)) {
 		int ret2;
@@ -1179,11 +1220,17 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 		if (IS_ERR(ret2))
 			return ret2;
 	}
+	#endif
 
+	#if defined(UNDEFINED)
 	verdict = policy_can_access_ingress(ctx, src_label, SECLABEL,
 					    tuple.dport, tuple.nexthdr,
 					    is_untracked_fragment,
 					    &policy_match_type, &audited);
+	#else
+	(void)is_untracked_fragment;
+	verdict = CTX_ACT_OK;
+	#endif
 
 	/* Reply packets and related packets are allowed, all others must be
 	 * permitted by policy.
@@ -1204,6 +1251,7 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 					   verdict, policy_match_type, audited);
 	}
 
+	#if defined(UNDEFINED)
 	if (ret == CT_NEW) {
 #ifdef ENABLE_DSR
 	{
@@ -1227,6 +1275,7 @@ ipv4_policy(struct __ctx_buff *ctx, int ifindex, __u32 src_label, __u8 *reason,
 
 		/* NOTE: tuple has been invalidated after this */
 	}
+	#endif
 
 	if (!revalidate_data(ctx, &data, &data_end, &ip4))
 		return DROP_INVALID;

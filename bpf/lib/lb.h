@@ -1086,8 +1086,8 @@ static __always_inline
 struct lb4_service *lb4_lookup_service(struct lb4_key *key,
 				       const bool scope_switch)
 {
+	#if defined(UNDEFINED)
 	struct lb4_service *svc;
-
 	key->scope = LB_LOOKUP_SCOPE_EXT;
 	key->backend_slot = 0;
 	svc = map_lookup_elem(&LB4_SERVICES_MAP_V2, key);
@@ -1099,6 +1099,10 @@ struct lb4_service *lb4_lookup_service(struct lb4_key *key,
 		if (svc && svc->count)
 			return svc;
 	}
+	#else
+	(void)key;
+	(void)scope_switch;
+	#endif
 
 	return NULL;
 }
@@ -1113,9 +1117,14 @@ lb4_lookup_backend(struct __ctx_buff *ctx __maybe_unused, __u16 backend_id)
 {
 	struct lb4_backend *backend;
 
+	#if defined(UNDEFINED)
 	backend = __lb4_lookup_backend(backend_id);
 	if (!backend)
 		cilium_dbg_lb(ctx, DBG_LB4_LOOKUP_BACKEND_FAIL, backend_id, 0);
+	#else
+	(void)backend_id;
+	backend = NULL;
+	#endif
 
 	return backend;
 }

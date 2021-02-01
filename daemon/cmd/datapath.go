@@ -303,6 +303,7 @@ func (d *Daemon) syncEndpointsAndHostIPs() error {
 	return nil
 }
 
+// XXX
 // initMaps opens all BPF maps (and creates them if they do not exist). This
 // must be done *before* any operations which read BPF maps, especially
 // restoring endpoints and services.
